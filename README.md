@@ -1,2 +1,2 @@
 # project
-SW development project(Employee shift app)
+SW development project(Employee shift app) Flask Python
