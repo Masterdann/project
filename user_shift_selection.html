@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>User Shift Selection</title>
+    <script>
+        // Display the error message as a pop-up alert
+        function showError(message) {
+            if (message) {
+                alert(message);
+            }
+        }
+    </script>
+</head>
+<body onload="showError('{{ error_message }}')">
+    <h1>Shift Selection for {{ month }}/{{ year }} - {{ username }}</h1>
+    
+    <form method="POST">
+        <table border="1">
+            <tr>
+                <th>Day</th>
+                <th>Red Shift</th>
+                <th>Blue Shift</th>
+                <th>Green Shift</th>
+                <th>Select</th>
+            </tr>
+            {% for day, shift_data in shifts.items() %}
+            <tr>
+                <td>{{ day }}</td>
+                <td>{{ shift_data.get('red', 0) }}</td>
+                <td>{{ shift_data.get('blue', 0) }}</td>
+                <td>{{ shift_data.get('green', 0) }}</td>
+                <td>
+                    <select name="day_{{ day }}_shift">
+                        <option value="">-- Select --</option>
+                        {% if shift_data.get('red', 0) > 0 %}
+                        <option value="red">Red</option>
+                        {% endif %}
+                        {% if shift_data.get('blue', 0) > 0 %}
+                        <option value="blue">Blue</option>
+                        {% endif %}
+                        {% if shift_data.get('green', 0) > 0 %}
+                        <option value="green">Green</option>
+                        {% endif %}
+                    </select>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+        <button type="submit">Save Selection</button>
+    </form>
+</body>
+</html>
