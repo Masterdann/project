@@ -1,0 +1,64 @@
+{% extends 'base_admin.html' %}
+{% block title %}
+    Admin_manage
+{% endblock%}
+
+{% block content %}
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #1406d6;
+            text-align: left;
+            padding: 8px;
+        }
+        th {
+            background-color: #1406d6;
+        }
+        button {
+            display: inline-block;
+            padding: 5px 10px;
+            background-color: #2196F3;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            margin-left: 10px;
+        }
+    </style>
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th><th>Rating</th>
+            </tr>
+
+        </thead>
+        <tbody>
+            {% for user in users %}
+                <tr>
+                    <td>{{ user.name }} {{ user.surname }}</td>
+                    <td>{{user.rating}}</td>
+                    <td>
+                        <div class="d-flex justify-content-center mt-4">
+                            <a href="{{ url_for('add_user') }}" class="btn btn-primary">Schedule</a>
+                        </div>                    
+                    </td>
+                    <td>
+                        <div class="d-flex justify-content-center mt-4">
+                            <a href="{{ url_for('admin_edit', user_id=user.id) }}" class="btn btn-primary">Change User Info</a>
+                        </div>
+                    </td>
+                    <td>
+                        <form action="{{ url_for('delete_user', user_id=user.id) }}" method="POST" style="display:inline;">
+                            <button type="submit" class="button">Delete User</button>
+                        </form>
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div class="d-flex justify-content-center mt-4">
+        <a href="{{ url_for('add_user') }}" class="btn btn-primary">Add User</a>
+    </div>
+{% endblock %}

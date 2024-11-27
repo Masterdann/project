@@ -1,0 +1,21 @@
+{% extends 'base_admin.html' %}
+{% block title %}
+    Edit User
+{% endblock %}
+
+{% block content %}
+    <h1>Edit User</h1>
+    <form method="POST">
+        <label for="name">Name:</label>
+        <input type="text" id="name" name="name" value="{{ user.name }}" required>
+        
+        <label for="surname">Surname:</label>
+        <input type="text" id="surname" name="surname" value="{{ user.surname }}" required>
+        
+        <label for="rating">Rating:</label>
+        <input type="number" id="rating" name="rating" value="{{ user.rating }}" required>
+        
+        <button type="submit">Save Changes</button>
+    </form>
+    <a href="{{ url_for('admin_manage') }}">Cancel</a>
+{% endblock %}

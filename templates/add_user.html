@@ -1,0 +1,19 @@
+{% extends 'base_admin.html' %}
+{% block title %}
+    Admin1
+{% endblock%}
+
+{% block content %}
+    <div class="container">
+        <h1>Add New User</h1>
+        <form method="POST" action="{{ url_for('add_user') }}">
+            <label for="name">Name:</label>
+            <input type="text" id="name" name="name" required>
+        
+            <label for="surname">Surname:</label>
+            <input type="text" id="surname" name="surname" required>
+        
+            <input type="submit" value="Add User">
+        </form>
+    </div>
+{% endblock %}

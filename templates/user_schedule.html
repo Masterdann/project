@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ username }}'s Schedule for {{ month }}</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        .calendar {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr); /* 7 columns for 7 days of the week */
+            gap: 10px;
+            margin: 20px;
+        }
+        .day-square {
+            border: 1px solid #ddd;
+            padding: 10px;
+            background-color: #f9f9f9;
+            text-align: center;
+            position: relative;
+        }
+        .day-square p {
+            margin: 5px 0;
+        }
+        .shift {
+            font-weight: bold;
+            color: white;
+            padding: 5px;
+        }
+        .shift.red {
+            background-color: #FF6347; /* Tomato color for Red shift */
+        }
+        .shift.blue {
+            background-color: #4682B4; /* Steel blue color for Blue shift */
+        }
+        .shift.green {
+            background-color: #32CD32; /* Lime green for Green shift */
+        }
+        .no-shift {
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <h1>{{ username }}'s Schedule for {{ month }}</h1>
+    <div class="calendar">
+        {% for day in range(1, get_days_in_month(month) + 1) %}
+            <div class="day-square">
+                <p>Day {{ day }}</p>
+                {% if shifts.get(day) %}
+                    <p class="shift {{ shifts[day] }}">{{ shifts[day] | capitalize }}</p>
+                {% else %}
+                    <p class="no-shift">No Shift</p>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+</body>
+</html>

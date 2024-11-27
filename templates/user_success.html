@@ -1,0 +1,14 @@
+{% extends 'base_admin.html' %}
+{% block title %}
+    User Added
+{% endblock%}
+
+{% block content %}
+    <div class="container">
+        <h1>User Successfully Added</h1>
+        <p><strong>User ID:</strong> {{ user_id }}</p>
+        <p><strong>Password:</strong> {{ password }}</p>
+        <a href="{{ url_for('admin_main') }}" class="btn btn-primary">Back to Admin Page</a>
+    </div>
+{% endblock %}
+
