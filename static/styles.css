@@ -1,0 +1,79 @@
+/* Profile and My Schedule Page Styles */
+form {
+    max-width: 600px;
+    margin: 20px auto;
+}
+
+form label {
+    display: block;
+    margin-top: 10px;
+}
+
+form input, form select {
+    width: 100%;
+    padding: 10px;
+    margin-top: 5px;
+}
+
+form button {
+    margin-top: 20px;
+    padding: 10px 15px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+
+form button:hover {
+    background-color: #45a049;
+}
+
+table {
+    margin: 20px auto;
+    border-collapse: collapse;
+    width: 90%;
+}
+
+table th, table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: center;
+}
+
+table th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+}
+/* Schedule Table Styles */
+.schedule-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    text-align: center;
+}
+
+.schedule-table th, .schedule-table td {
+    padding: 15px;
+    border: 1px solid #ccc;
+}
+
+.schedule-table th {
+    background-color: #333;
+    color: white;
+    font-weight: bold;
+}
+
+.schedule-table tr {
+    transition: background-color 0.3s ease;
+}
+
+.schedule-table tr:hover {
+    background-color: #555;
+}
+/* Profile Photo Styles */
+form img {
+    display: block;
+    margin: 20px auto;
+    border-radius: 50%;
+    border: 2px solid #4CAF50;
+}
