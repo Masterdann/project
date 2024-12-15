@@ -2,6 +2,9 @@
 adminA
 DF|\CC\S
 
+RogerE
+%3k"TUV~
+
 test2
 M:SA*q=I
 
@@ -30,6 +33,12 @@ from flask import Flask, render_template, request, redirect, url_for, abort
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from datetime import datetime
+from werkzeug.utils import secure_filename
+
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 
 app = Flask(__name__)
 
@@ -43,6 +52,11 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 login_manager.login_message = 'Please log in to access this page.'
 
+
+# Configure upload folder
+UPLOAD_FOLDER = os.path.join(basedir, 'static/uploads')
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 db = SQLAlchemy(app)
 
 class User(UserMixin, db.Model):
@@ -52,7 +66,7 @@ class User(UserMixin, db.Model):
     name = db.Column(db.String(100), nullable=False)
     surname = db.Column(db.String(100), nullable=False)
     rating = db.Column(db.Integer, nullable=False)
-
+    profile_photo = db.Column(db.String(200), nullable=True)
     def __repr__(self):
         return f'<User {self.user_id}>'
 
@@ -285,9 +299,8 @@ def login():
     if request.method == 'POST':
         user_id = request.form['username']
         password = request.form['password']
-
         user = User.query.filter_by(user_id=user_id).first()
-
+        print (user_id, password)
         if user and check_password_hash(user.user_password, password):
             login_user(user)
             if user_id == 'adminA':
@@ -378,6 +391,75 @@ def user_success():
     user_id = request.args.get('user_id')
     password = request.args.get('password')
     return render_template('user_success.html', user_id=user_id, password=password)
+
+
+@app.route('/my_schedule', methods=['GET'])
+@login_required
+def my_schedule():
+    user = current_user  # Get the current logged-in user
+    year = datetime.now().year
+    month = datetime.now().month
+
+    # Get all shifts for the current user
+    user_shifts = Shift.query.filter(
+        Shift.user_ids.like(f"%{user.user_id}%")
+    ).all()
+
+    # Build a dictionary of shifts the user has selected
+    selected_shifts = {
+        (shift.year, shift.month, shift.day): shift.shift_name for shift in user_shifts
+    }
+
+    # Get all shifts for the current month
+    days_in_month = get_days_in_month(year, month)
+
+    # Map shift names to colors
+    shift_colors = {
+        'red': 'red',
+        'blue': 'blue',
+        'green': 'green',
+        'unselected': 'gray',
+    }
+
+    # Prepare data for rendering
+    shifts = []
+    for day in range(1, days_in_month + 1):
+        if (year, month, day) in selected_shifts:
+            shift_name = selected_shifts[(year, month, day)]
+            shifts.append({'day': day, 'shift': shift_name, 'color': shift_colors[shift_name]})
+        else:
+            shifts.append({'day': day, 'shift': 'unselected', 'color': shift_colors['unselected']})
+
+    return render_template(
+        'my_schedule.html',
+        year=year,
+        month=month,
+        shifts=shifts,
+    )
+
+@app.route('/profile', methods=['GET', 'POST'])
+@login_required
+def profile():
+    user = current_user
+
+    if request.method == 'POST':
+        user.name = request.form['name']
+        user.surname = request.form['surname']
+
+        # Handle file upload
+        if 'profile_photo' in request.files:
+            file = request.files['profile_photo']
+            if file and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(filepath)
+                user.profile_photo = f'static/uploads/{filename}'  
+
+        db.session.commit()
+        return redirect(url_for('profile'))
+
+    return render_template('profile.html', user=user)
+
 
 """
 -------------------------------------
