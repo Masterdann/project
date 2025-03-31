@@ -11,6 +11,11 @@ M:SA*q=I
 test3
 FJI|<_S"
 
+
+
+
+
+
 test4
 ^6ogHeq@
 
@@ -43,7 +48,7 @@ def allowed_file(filename):
 app = Flask(__name__)
 
 basedir = os.path.abspath(os.path.dirname(__file__))
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'database.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = ('postgresql://username:password@db:5432/mydatabase')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.secret_key = 'secret_key'
 
@@ -62,7 +67,7 @@ db = SQLAlchemy(app)
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.String(20), unique=True, nullable=False)
-    user_password = db.Column(db.String(100), nullable=False) 
+    user_password = db.Column(db.String(300), nullable=False) 
     name = db.Column(db.String(100), nullable=False)
     surname = db.Column(db.String(100), nullable=False)
     rating = db.Column(db.Integer, nullable=False)
@@ -446,7 +451,7 @@ def profile():
         user.name = request.form['name']
         user.surname = request.form['surname']
 
-        # Handle file upload
+        # file upload
         if 'profile_photo' in request.files:
             file = request.files['profile_photo']
             if file and allowed_file(file.filename):
@@ -471,4 +476,4 @@ def profile():
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0', port=5000)
