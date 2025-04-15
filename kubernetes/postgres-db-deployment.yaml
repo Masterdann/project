@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-db
+spec:
+  replicas: 1  # One instance of the DB (you can scale it if necessary)
+  selector:
+    matchLabels:
+      app: postgres-db
+  template:
+    metadata:
+      labels:
+        app: postgres-db
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:13  # Official PostgreSQL image
+        env:
+        - name: POSTGRES_USER
+          value: "username"
+        - name: POSTGRES_PASSWORD
+          value: "password"
+        - name: POSTGRES_DB
+          value: "mydatabase"
+        ports:
+        - containerPort: 5432
+
