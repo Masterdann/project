@@ -178,3 +178,23 @@ def admin_main():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
+
+"""
+"""
+#Once the db are created, inside the pod(flask-app), create the user adminA(or other user) manually
+#using -- flask shell, run this
+from app import db, User
+from werkzeug.security import generate_password_hash
+
+hashed = generate_password_hash("admin123")
+admin = User(
+    user_id="adminA",
+    user_password=hashed,
+    name="Admin",
+    surname="Account",
+    rating=5,
+    profile_photo=None
+)
+
+db.session.add(admin)
+db.session.commit()
