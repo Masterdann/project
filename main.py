@@ -40,7 +40,11 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 db = SQLAlchemy(app)
-
+# Crear tablas al vuelo (Gunicorn no entra en __main__)
+@app.before_first_request
+def create_tables():
+    db.create_all()
+    
 # ——— Login manager ———
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -123,11 +127,7 @@ class Shift(db.Model):
         if user_id in users:
             users.remove(user_id)
             self.user_ids = ','.join(users) if users else None
-
-# Crear tablas al vuelo (Gunicorn no entra en __main__)
-@app.before_first_request
-def create_tables():
-    db.create_all()
+            
 
 # ——— User loader ———
 @login_manager.user_loader
