@@ -1,4 +1,4 @@
-name: Python Linter
+name: Python Linters
 
 on: [push, pull_request]
 
@@ -13,13 +13,20 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.9'
+          python-version: '3.9'  # O la versión que uses
 
-      - name: Install dependencies
+      - name: Install linters
         run: |
           python -m pip install --upgrade pip
-          pip install flake8
+          pip install flake8 pylint
 
       - name: Run Flake8
-        run: flake8 .
+        run: |
+          echo "Running flake8..."
+          flake8 .
 
+      - name: Run Pylint
+        run: |
+          echo "Running pylint..."
+          # Analiza todos los archivos .py excepto venv y __pycache__
+          find . -name "*.py" ! -path "*/venv/*" ! -path "*/__pycache__/*" -exec pylint {} +
