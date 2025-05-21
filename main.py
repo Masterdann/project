@@ -25,9 +25,9 @@ app = Flask(
     template_folder='templates',
     static_folder='static'
 )
-# Leer SECRET_KEY de env (útil en Railway) o usar fallback en local
+
+# Leer SECRET_KEY y DATABASE_URL de env (Railway) o usar valores locales
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key')
-# Leer la URL de la base de datos de Railway o usar SQLite local
 app.config['SQLALCHEMY_DATABASE_URI'] = (
     os.environ.get('DATABASE_URL') or
     f"sqlite:///{os.path.join(basedir, 'fallback.db')}"
@@ -39,12 +39,13 @@ UPLOAD_FOLDER = os.path.join(basedir, 'static', 'uploads')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
+# ——— Inicializar base de datos ———
 db = SQLAlchemy(app)
-# Crear tablas al vuelo (Gunicorn no entra en __main__)
-@app.before_first_request
-def create_tables():
+
+# Crear tablas al importar el módulo (para Gunicorn/Railway)
+with app.app_context():
     db.create_all()
-    
+
 # ——— Login manager ———
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -53,11 +54,11 @@ login_manager.login_message = 'Please log in to access this page.'
 
 def allowed_file(filename):
     return (
-        '.' in filename
-        and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+        '.' in filename and
+        filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
     )
 
-# ——— Models ———
+# ——— Modelos ———
 class User(UserMixin, db.Model):
     id             = db.Column(db.Integer, primary_key=True)
     user_id        = db.Column(db.String(20), unique=True, nullable=False)
@@ -73,12 +74,12 @@ class User(UserMixin, db.Model):
     @staticmethod
     def generate_user_id(name, surname):
         base_id = f"{name}{surname[0].upper()}"
-        user_id = base_id
+        uid = base_id
         counter = 1
-        while User.query.filter_by(user_id=user_id).first():
-            user_id = f"{base_id}{counter}"
+        while User.query.filter_by(user_id=uid).first():
+            uid = f"{base_id}{counter}"
             counter += 1
-        return user_id
+        return uid
 
     @staticmethod
     def generate_random_password(length=8):
@@ -91,7 +92,6 @@ class User(UserMixin, db.Model):
 
     def get_id(self):
         return str(self.id)
-
 
 class Shift(db.Model):
     id          = db.Column(db.Integer, primary_key=True)
@@ -127,9 +127,8 @@ class Shift(db.Model):
         if user_id in users:
             users.remove(user_id)
             self.user_ids = ','.join(users) if users else None
-            
 
-# ——— User loader ———
+# ——— Loader de usuarios ———
 @login_manager.user_loader
 def loader_user(user_id):
     return User.query.get(int(user_id))
@@ -142,7 +141,7 @@ def get_days_in_month(year, month):
 def get_days_in_month_filter(year, month):
     return get_days_in_month(year, month)
 
-# ——— Routes ———
+# ——— Rutas ———
 
 @app.route('/', methods=['GET', 'POST'])
 def login():
@@ -153,10 +152,9 @@ def login():
         user = User.query.filter_by(user_id=uid).first()
         if user and check_password_hash(user.user_password, pwd):
             login_user(user)
-            return (
-                redirect(url_for('admin_main'))
-                if uid == 'adminA'
-                else redirect(url_for('normal_staff'))
+            return redirect(
+                url_for('admin_main') if uid == 'adminA'
+                else url_for('normal_staff')
             )
         error = 'Invalid Credentials. Please try again.'
     return render_template('login.html', error=error)
@@ -181,8 +179,7 @@ def admin_main():
 @login_required
 def admin_manage():
     users = User.query.filter(User.user_id != 'adminA') \
-                      .order_by(User.rating.desc()) \
-                      .all()
+                      .order_by(User.rating.desc()).all()
     now = datetime.now()
     return render_template(
         'admin_manage.html',
@@ -243,7 +240,7 @@ def user_success():
         password=request.args.get('password')
     )
 
-@app.route('/admin_shift_selection/<int:year>/<int:month>', methods=['GET', 'POST'])
+@app.route('/admin_shift_selection/<int:year>/<int:month>', methods=['GET','POST'])
 @login_required
 def admin_shift_selection(year, month):
     if month < 1 or month > 12 or year < 1900:
@@ -251,14 +248,11 @@ def admin_shift_selection(year, month):
     days = get_days_in_month(year, month)
 
     if request.method == 'POST':
-        for d in range(1, days + 1):
-            for color in ['red', 'blue', 'green']:
+        for d in range(1, days+1):
+            for color in ['red','blue','green']:
                 avail = int(request.form.get(f'{color}_shift_{d}', 0))
                 shift = Shift.query.filter_by(
-                    year=year,
-                    month=month,
-                    day=d,
-                    shift_name=color
+                    year=year, month=month, day=d, shift_name=color
                 ).first()
                 if shift:
                     shift.available = avail
@@ -275,15 +269,10 @@ def admin_shift_selection(year, month):
             url_for('admin_shift_selection', year=year, month=month)
         )
 
-    # Preparar datos para la vista
-    shifts = {
-        d: {c: 0 for c in ['red', 'blue', 'green']}
-        for d in range(1, days + 1)
-    }
-    for shift in Shift.query.filter_by(year=year, month=month).all():
-        shifts[shift.day][shift.shift_name] = shift.available
+    shifts = {d: {c:0 for c in ['red','blue','green']} for d in range(1, days+1)}
+    for s in Shift.query.filter_by(year=year, month=month).all():
+        shifts[s.day][s.shift_name] = s.available
 
-    now = datetime.now()
     prev_month = month - 1 or 12
     prev_year  = year - 1 if month == 1 else year
     next_month = month + 1 if month < 12 else 1
@@ -292,8 +281,7 @@ def admin_shift_selection(year, month):
     return render_template(
         'admin_shift_selection.html',
         shifts=shifts,
-        year=year,
-        month=month,
+        year=year, month=month,
         days_in_month=days,
         prev_month=prev_month,
         prev_year=prev_year,
@@ -307,30 +295,23 @@ def user_shift_selection(year, month, username):
     user = User.query.filter_by(user_id=username).first_or_404()
     days = get_days_in_month(year, month)
 
-    # Garantizar orden por ranking
-    higher = User.query.filter(User.rating > user.rating).all()
-    for u in higher:
+    # Esperar a usuarios con mayor rating
+    for u in User.query.filter(User.rating > user.rating).all():
         for d in range(1, days+1):
-            taken = any(
-                u.user_id in s.get_user_list()
-                for s in Shift.query.filter_by(year=year, month=month, day=d)
-            )
-            if not taken:
-                abort(
-                    403,
-                    f"Wait for higher-ranked user {u.user_id} "
-                    "to complete their selection."
-                )
+            if not any(u.user_id in sh.get_user_list()
+                       for sh in Shift.query.filter_by(
+                           year=year, month=month, day=d
+                       ).all()):
+                abort(403, f"Wait for higher-ranked user {u.user_id}")
 
     shifts = {}
     for d in range(1, days+1):
         row = {}
         for color in ['red','blue','green']:
-            s = Shift.query.filter_by(
+            sh = Shift.query.filter_by(
                 year=year, month=month, day=d, shift_name=color
             ).first()
-            available = s.available - len(s.get_user_list()) if s else 0
-            row[color] = available
+            row[color] = (sh.available - len(sh.get_user_list())) if sh else 0
         shifts[d] = row
 
     error = None
@@ -342,7 +323,7 @@ def user_shift_selection(year, month, username):
                     year=year, month=month, day=d, shift_name=sel
                 ).first()
                 if not sh or sh.is_full():
-                    error = f"Shift '{sel}' on day {d} is full or unavailable."
+                    error = f"Shift '{sel}' on day {d} is full!"
                     break
                 sh.add_user(user.user_id)
                 db.session.commit()
@@ -403,12 +384,9 @@ def my_schedule():
 @login_required
 def profile():
     user = current_user
-    error = None
-
     if request.method == 'POST':
         user.name    = request.form['name']
         user.surname = request.form['surname']
-
         if 'profile_photo' in request.files:
             file = request.files['profile_photo']
             if file and allowed_file(file.filename):
@@ -418,7 +396,6 @@ def profile():
                 user.profile_photo = f'static/uploads/{fn}'
         db.session.commit()
         return redirect(url_for('profile'))
-
     return render_template('profile.html', user=user)
 
 # ——— Arranque de la app ———
