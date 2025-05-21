@@ -119,7 +119,6 @@ class Shift(db.Model):
 # ——— Crear tablas y seed de admin ———
 with app.app_context():
     db.create_all()
-    # Seed: crear adminA si no existe
     if not User.query.filter_by(user_id='adminA').first():
         hashed = generate_password_hash("admin123")
         admin = User(
@@ -143,6 +142,15 @@ login_manager.login_message = 'Please log in to access this page.'
 def loader_user(user_id):
     return User.query.get(int(user_id))
 
+# ——— Context processor para year y month ———
+@app.context_processor
+def inject_date():
+    now = datetime.now()
+    return {
+        'year': now.year,
+        'month': now.month
+    }
+
 # ——— Helpers de calendario ———
 def get_days_in_month(year, month):
     return calendar.monthrange(year, month)[1]
@@ -152,7 +160,6 @@ def get_days_in_month_filter(year, month):
     return get_days_in_month(year, month)
 
 # ——— Rutas ———
-
 @app.route('/', methods=['GET', 'POST'])
 def login():
     error = None
@@ -250,7 +257,7 @@ def user_success():
         password=request.args.get('password')
     )
 
-@app.route('/admin_shift_selection/<int:year>/<int:month>', methods=['GET','POST'])
+@app.route('/admin_shift_selection/<int:year>/<int:month>', methods=['GET', 'POST'])
 @login_required
 def admin_shift_selection(year, month):
     if month < 1 or month > 12 or year < 1900:
@@ -259,7 +266,7 @@ def admin_shift_selection(year, month):
 
     if request.method == 'POST':
         for d in range(1, days+1):
-            for color in ['red','blue','green']:
+            for color in ['red', 'blue', 'green']:
                 avail = int(request.form.get(f'{color}_shift_{d}', 0))
                 shift = Shift.query.filter_by(
                     year=year, month=month, day=d, shift_name=color
@@ -279,7 +286,7 @@ def admin_shift_selection(year, month):
             url_for('admin_shift_selection', year=year, month=month)
         )
 
-    shifts = {d: {c:0 for c in ['red','blue','green']} for d in range(1, days+1)}
+    shifts = {d: {c: 0 for c in ['red', 'blue', 'green']} for d in range(1, days+1)}
     for s in Shift.query.filter_by(year=year, month=month).all():
         shifts[s.day][s.shift_name] = s.available
 
@@ -299,7 +306,7 @@ def admin_shift_selection(year, month):
         next_year=next_year
     )
 
-@app.route('/user_shift_selection/<int:year>/<int:month>/<string:username>', methods=['GET','POST'])
+@app.route('/user_shift_selection/<int:year>/<int:month>/<string:username>', methods=['GET', 'POST'])
 @login_required
 def user_shift_selection(year, month, username):
     user = User.query.filter_by(user_id=username).first_or_404()
@@ -316,7 +323,7 @@ def user_shift_selection(year, month, username):
     shifts = {}
     for d in range(1, days+1):
         row = {}
-        for color in ['red','blue','green']:
+        for color in ['red', 'blue', 'green']:
             sh = Shift.query.filter_by(
                 year=year, month=month, day=d, shift_name=color
             ).first()
@@ -353,7 +360,7 @@ def user_shift_selection(year, month, username):
         username=username,
         year=year,
         month=month,
-        error_message=error
+        error_message=None
     )
 
 @app.route('/normal_staff')
