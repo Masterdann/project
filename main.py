@@ -25,7 +25,6 @@ app = Flask(
     template_folder='templates',
     static_folder='static'
 )
-# Configurar SECRET_KEY y Base de Datos
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key')
 app.config['SQLALCHEMY_DATABASE_URI'] = (
     os.environ.get('DATABASE_URL') or
@@ -143,9 +142,9 @@ login_manager.login_message = 'Please log in to access this page.'
 def loader_user(user_id):
     return User.query.get(int(user_id))
 
-# ——— Context processor para variables de plantilla ———
+# ——— Context processor para variables globales ———
 @app.context_processor
-def inject_defaults():
+def inject_globals():
     now = datetime.now()
     return {
         'year': now.year,
@@ -167,14 +166,12 @@ def get_days_in_month_filter(year, month):
 def login():
     error = None
     if request.method == 'POST':
-        uid = request.form['username']
-        pwd = request.form['password']
+        uid = request.form.get('username')
+        pwd = request.form.get('password')
         user = User.query.filter_by(user_id=uid).first()
         if user and check_password_hash(user.user_password, pwd):
             login_user(user)
-            return redirect(
-                url_for('admin_main') if uid == 'adminA' else url_for('normal_staff')
-            )
+            return redirect(url_for('admin_main') if uid == 'adminA' else url_for('normal_staff'))
         error = 'Invalid credentials. Please try again.'
     return render_template('login.html', error=error)
 
@@ -200,9 +197,9 @@ def admin_manage():
 def admin_edit(user_id):
     user = User.query.get_or_404(user_id)
     if request.method == 'POST':
-        user.name    = request.form['name']
-        user.surname = request.form['surname']
-        user.rating  = int(request.form['rating'])
+        user.name    = request.form.get('name')
+        user.surname = request.form.get('surname')
+        user.rating  = int(request.form.get('rating', user.rating))
         db.session.commit()
         return redirect(url_for('admin_manage'))
     return render_template('admin_edit.html', user=user)
@@ -219,12 +216,12 @@ def delete_user(user_id):
 @login_required
 def add_user():
     if request.method == 'POST':
-        name    = request.form['name']
-        surname = request.form['surname']
+        name    = request.form.get('name')
+        surname = request.form.get('surname')
         uid     = User.generate_user_id(name, surname)
         pwd     = User.generate_random_password()
         hashed  = generate_password_hash(pwd)
-        new_u   = User(user_id=uid, user_password=hashed, name=name, surname=surname, rating=User.initial_rating())
+        new_u   = User(user_id=uid, user_password=hashed, name=name, surname=surname, rating=0)
         db.session.add(new_u)
         db.session.commit()
         return redirect(url_for('user_success', user_id=uid, password=pwd))
@@ -241,7 +238,7 @@ def admin_shift_selection(year, month):
     days = get_days_in_month(year, month)
     if request.method == 'POST':
         for d in range(1, days+1):
-            for color in ['red', 'blue', 'green']:
+            for color in ['red','blue','green']:
                 avail = int(request.form.get(f'{color}_shift_{d}', 0))
                 shift = Shift.query.filter_by(year=year, month=month, day=d, shift_name=color).first()
                 if shift:
@@ -250,47 +247,7 @@ def admin_shift_selection(year, month):
                     db.session.add(Shift(shift_name=color, year=year, month=month, day=d, available=avail))
         db.session.commit()
         return redirect(url_for('admin_shift_selection', year=year, month=month))
-    shifts = {d: {c: 0 for c in ['red', 'blue', 'green']} for d in range(1, days+1)}
+    shifts = {d: {c:0 for c in ['red','blue','green']} for d in range(1, days+1)}
     for s in Shift.query.filter_by(year=year, month=month).all():
         shifts[s.day][s.shift_name] = s.available
-    prev_month, prev_year = (month-1 or 12), year-1 if month==1 else year
-    next_month, next_year = month+1 if month<12 else 1, year+1 if month==12 else year
-    return render_template('admin_shift_selection.html', shifts=shifts, year=year, month=month, days_in_month=days, prev_month=prev_month, prev_year=prev_year, next_month=next_month, next_year=next_year)
-
-@app.route('/user_shift_selection/<int:year>/<int:month>/<string:username>', methods=['GET', 'POST'])
-@login_required
-def user_shift_selection(year, month, username):
-    user = User.query.filter_by(user_id=username).first_or_404()
-    days = get_days_in_month(year, month)
-    for u in User.query.filter(User.rating > user.rating).all():
-        for d in range(1, days+1):
-            if not any(u.user_id in sh.get_user_list() for sh in Shift.query.filter_by(year=year, month=month, day=d).all()):
-                abort(403, f"Wait for higher-ranked user {u.user_id}")
-    shifts = {}
-    for d in range(1, days+1):
-        row = {}
-        for color in ['red','blue','green']:
-            sh = Shift.query.filter_by(year=year, month=month, day=d, shift_name=color).first()
-            row[color] = (sh.available - len(sh.get_user_list())) if sh else 0
-        shifts[d] = row
-    error=None
-    if request.method=='POST':
-        for d in range(1, days+1):
-            sel=request.form.get(f'day_{d}_shift')
-            if sel:
-                sh=Shift.query.filter_by(year=year, month=month, day=d, shift_name=sel).first()
-                if not sh or sh.is_full(): error=f"Shift '{sel}' on day {d} is full!";break
-                sh.add_user(user.user_id); db.session.commit()
-        if error: return render_template('user_shift_selection.html', shifts=shifts, username=username, year=year, month=month, error_message=error)
-        return redirect(url_for('normal_staff'))
-    return render_template('user_shift_selection.html', shifts=shifts, username=username, year=year, month=month, error_message=None)
-
-@app.route('/normal_staff')
-@login_required
-def normal_staff():
-    return render_template('normal_staff.html')
-
-@app.route('/my_schedule')
-@login_required
-def my_schedule():
-    user=current_user; year,month=datetime.now().year,datetime.now().
+    prev_m, prev_y = (month-1 or 12), year-1 if month==1 else year
