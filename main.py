@@ -259,7 +259,6 @@ def load_user(user_id):
 @app.template_filter(
     "get_days_in_month",
 )
-
 def get_days_in_month_filter(
     year,
     month,
@@ -275,7 +274,6 @@ def get_days_in_month_filter(
     methods=["GET", "POST"],
 )
 @login_required
-
 def login():
     error = None
     if request.method == "POST":
@@ -312,7 +310,6 @@ def login():
     )
 
 
-
 @app.route(
     "/logout",
 )
@@ -326,12 +323,10 @@ def logout():
     )
 
 
-
 @app.route(
     "/admin_main",
 )
 @login_required
-
 def admin_main():
     return render_template(
         "admin_main.html",
@@ -342,7 +337,6 @@ def admin_main():
     "/admin_manage",
 )
 @login_required
-
 def admin_manage():
     users = (
         User.query
@@ -365,7 +359,6 @@ def admin_manage():
     methods=["GET", "POST"],
 )
 @login_required
-
 def admin_edit(
     user_id,
 ):
@@ -395,7 +388,6 @@ def admin_edit(
     methods=["POST"],
 )
 @login_required
-
 def delete_user(
     user_id,
 ):
@@ -416,7 +408,6 @@ def delete_user(
     methods=["GET", "POST"],
 )
 @login_required
-
 def add_user():
     if request.method == "POST":
         name = request.form["name"]
@@ -456,7 +447,6 @@ def add_user():
     "/user_success",
 )
 @login_required
-
 def user_success():
     return render_template(
         "user_success.html",
@@ -474,7 +464,6 @@ def user_success():
     methods=["GET", "POST"],
 )
 @login_required
-
 def admin_shift_selection(
     year,
     month,
@@ -592,7 +581,6 @@ def admin_shift_selection(
     methods=["GET", "POST"],
 )
 @login_required
-
 def user_shift_selection(
     year,
     month,
@@ -617,7 +605,6 @@ def user_shift_selection(
     "/normal_staff",
 )
 @login_required
-
 def normal_staff():
     return render_template(
         "normal_staff.html",
@@ -628,7 +615,6 @@ def normal_staff():
     "/my_schedule",
 )
 @login_required
-
 def my_schedule():
     return render_template(
         "my_schedule.html",
@@ -641,7 +627,6 @@ def my_schedule():
     methods=["GET", "POST"],
 )
 @login_required
-
 def profile():
     return render_template(
         "profile.html",
