@@ -40,10 +40,10 @@ app.config["SECRET_KEY"] = os.environ.get(
     "dev-secret-key",
 )
 db_url = os.environ.get("DATABASE_URL") or (
-    f"sqlite:///{os.path.join(
+    "sqlite:///" + os.path.join(
         BASEDIR,
-        'fallback.db',
-    )}"
+        "fallback.db",
+    )
 )
 app.config["SQLALCHEMY_DATABASE_URI"] = db_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
