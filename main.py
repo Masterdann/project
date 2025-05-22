@@ -66,6 +66,7 @@ def inject_current_date():
         "current_month": now.month,
     }
 
+
 app.context_processor(inject_current_date)
 
 
@@ -156,7 +157,6 @@ class User(UserMixin, db.Model):
         return str(self.id)
 
 
-
 class Shift(db.Model):
     id = db.Column(
         db.Integer,
@@ -230,7 +230,6 @@ class Shift(db.Model):
             )
 
 
-
 with app.app_context():
     if not User.query.filter_by(
         user_id="adminA",
@@ -250,14 +249,11 @@ with app.app_context():
         db.session.commit()
 
 
-
 @login_manager.user_loader
-
 def load_user(user_id):
     return User.query.get(
         int(user_id),
     )
-
 
 
 @app.template_filter(
@@ -272,7 +268,6 @@ def get_days_in_month_filter(
         year,
         month,
     )[1]
-
 
 
 @app.route(
@@ -322,7 +317,6 @@ def login():
     "/logout",
 )
 @login_required
-
 def logout():
     logout_user()
     return redirect(
@@ -342,7 +336,6 @@ def admin_main():
     return render_template(
         "admin_main.html",
     )
-
 
 
 @app.route(
@@ -365,7 +358,6 @@ def admin_manage():
         "admin_manage.html",
         users=users,
     )
-
 
 
 @app.route(
@@ -398,7 +390,6 @@ def admin_edit(
     )
 
 
-
 @app.route(
     "/delete_user/<int:user_id>",
     methods=["POST"],
@@ -418,7 +409,6 @@ def delete_user(
             "admin_manage",
         )
     )
-
 
 
 @app.route(
@@ -462,7 +452,6 @@ def add_user():
     )
 
 
-
 @app.route(
     "/user_success",
 )
@@ -478,7 +467,6 @@ def user_success():
             "password",
         ),
     )
-
 
 
 @app.route(
@@ -599,7 +587,6 @@ def admin_shift_selection(
     )
 
 
-
 @app.route(
     "/user_shift_selection/<int:year>/<int:month>/<string:username>",
     methods=["GET", "POST"],
@@ -626,7 +613,6 @@ def user_shift_selection(
     )
 
 
-
 @app.route(
     "/normal_staff",
 )
@@ -636,7 +622,6 @@ def normal_staff():
     return render_template(
         "normal_staff.html",
     )
-
 
 
 @app.route(
@@ -651,7 +636,6 @@ def my_schedule():
     )
 
 
-
 @app.route(
     "/profile",
     methods=["GET", "POST"],
@@ -663,7 +647,6 @@ def profile():
         "profile.html",
         user=current_user,
     )
-
 
 
 if __name__ == "__main__":
