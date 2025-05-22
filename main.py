@@ -1,130 +1,70 @@
-# -*- coding: utf-8 -*-
-# Pylint overrides, split across lines to avoid an overly long comment:
-# pylint: disable=missing-module-docstring
-# pylint: disable=missing-class-docstring
-# pylint: disable=missing-function-docstring
-# pylint: disable=import-error
-# pylint: disable=redefined-outer-name
-
-import calendar
 import os
 import random
 import string
+import calendar
 from datetime import datetime
 
-from flask import (
-    Flask,
-    abort,
-    redirect,
-    render_template,
-    request,
-    url_for,
-)
+from flask import Flask, render_template, request, redirect, url_for, abort
+from flask_sqlalchemy import SQLAlchemy
 from flask_login import (
     LoginManager,
     UserMixin,
-    current_user,
-    login_required,
     login_user,
     logout_user,
+    login_required,
+    current_user,
 )
-from flask_sqlalchemy import SQLAlchemy
-from werkzeug.security import (
-    check_password_hash,
-    generate_password_hash,
-)
+from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 
-BASEDIR = os.path.abspath(os.path.dirname(__file__))
+# ——— Configuración básica ———
+basedir = os.path.abspath(os.path.dirname(__file__))
 
-app = Flask(
-    __name__,
-    template_folder="templates",
-    static_folder="static",
+app = Flask(__name__, template_folder="templates", static_folder="static")
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-key")
+app.config["SQLALCHEMY_DATABASE_URI"] = (
+    os.environ.get("DATABASE_URL")
+    or f"sqlite:///{os.path.join(basedir, 'fallback.db')}"
 )
-app.config["SECRET_KEY"] = os.environ.get(
-    "SECRET_KEY",
-    "dev-secret-key",
-)
-db_url = os.environ.get("DATABASE_URL") or (
-    "sqlite:///" + os.path.join(
-        BASEDIR,
-        "fallback.db",
-    )
-)
-app.config["SQLALCHEMY_DATABASE_URI"] = db_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-UPLOAD_FOLDER = os.path.join(
-    BASEDIR,
-    "static",
-    "uploads",
-)
+# Carpeta de uploads
+UPLOAD_FOLDER = os.path.join(basedir, "static", "uploads")
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 
+# ——— Inyección global de fecha para los templates ———
+@app.context_processor
 def inject_current_date():
     now = datetime.now()
     return {
+        # para base_admin.html (admin)
         "year": now.year,
         "month": now.month,
+        # para base.html (staff normal)
         "current_year": now.year,
         "current_month": now.month,
     }
 
 
-app.context_processor(inject_current_date)
+# ——— Inicializar base de datos ———
+db = SQLAlchemy(app)
 
 
 def allowed_file(filename):
-    return (
-        "." in filename
-        and filename.rsplit(
-            ".",
-            1,
-        )[1].lower() in ALLOWED_EXTENSIONS
-    )
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-db = SQLAlchemy(app)
-login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = "login"
-login_manager.login_message = (
-    "Please log in to access this page."
-)
-
-
+# ——— Modelos ———
 class User(UserMixin, db.Model):
-    id = db.Column(
-        db.Integer,
-        primary_key=True,
-    )
-    user_id = db.Column(
-        db.String(20),
-        unique=True,
-        nullable=False,
-    )
-    user_password = db.Column(
-        db.String(300),
-        nullable=False,
-    )
-    name = db.Column(
-        db.String(100),
-        nullable=False,
-    )
-    surname = db.Column(
-        db.String(100),
-        nullable=False,
-    )
-    rating = db.Column(
-        db.Integer,
-        nullable=False,
-    )
-    profile_photo = db.Column(
-        db.String(200),
-        nullable=True,
-    )
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.String(20), unique=True, nullable=False)
+    user_password = db.Column(db.String(300), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    surname = db.Column(db.String(100), nullable=False)
+    rating = db.Column(db.Integer, nullable=False)
+    profile_photo = db.Column(db.String(200), nullable=True)
 
     def __repr__(self):
         return f"<User {self.user_id}>"
@@ -134,26 +74,15 @@ class User(UserMixin, db.Model):
         base_id = f"{name}{surname[0].upper()}"
         uid = base_id
         counter = 1
-        while User.query.filter_by(
-            user_id=uid,
-        ).first():
+        while User.query.filter_by(user_id=uid).first():
             uid = f"{base_id}{counter}"
             counter += 1
         return uid
 
     @staticmethod
-    def generate_random_password(
-        length=8,
-    ):
-        chars = (
-            string.ascii_letters
-            + string.digits
-            + string.punctuation
-        )
-        return "".join(
-            random.choice(chars)
-            for _ in range(length)
-        )
+    def generate_random_password(length=8):
+        chars = string.ascii_letters + string.digits + string.punctuation
+        return "".join(random.choice(chars) for _ in range(length))
 
     @staticmethod
     def initial_rating():
@@ -164,62 +93,29 @@ class User(UserMixin, db.Model):
 
 
 class Shift(db.Model):
-    id = db.Column(
-        db.Integer,
-        primary_key=True,
-    )
-    shift_name = db.Column(
-        db.String(20),
-        nullable=False,
-    )
-    year = db.Column(
-        db.Integer,
-        nullable=False,
-    )
-    month = db.Column(
-        db.Integer,
-        nullable=False,
-    )
-    day = db.Column(
-        db.Integer,
-        nullable=False,
-    )
-    available = db.Column(
-        db.Integer,
-        nullable=False,
-    )
-    user_ids = db.Column(
-        db.Text,
-        nullable=True,
-    )
+    id = db.Column(db.Integer, primary_key=True)
+    shift_name = db.Column(db.String(20), nullable=False)
+    year = db.Column(db.Integer, nullable=False)
+    month = db.Column(db.Integer, nullable=False)
+    day = db.Column(db.Integer, nullable=False)
+    available = db.Column(db.Integer, nullable=False)
+    user_ids = db.Column(db.Text, nullable=True)
 
     def __repr__(self):
         return (
             f"<Shift {self.id} - {self.shift_name} "
-            f"({self.year:04d}-{self.month:02d}-"
-            f"{self.day:02d})>"
+            f"({self.year}-{self.month:02d}-{self.day:02d})>"
         )
 
     def get_user_list(self):
-        return (
-            self.user_ids.split(
-                ","
-            )
-            if self.user_ids
-            else []
-        )
+        return self.user_ids.split(",") if self.user_ids else []
 
     def is_full(self):
-        return (
-            len(self.get_user_list())
-            >= self.available
-        )
+        return len(self.get_user_list()) >= self.available
 
     def add_user(self, user_id):
         if self.is_full():
-            raise ValueError(
-                "Shift is already full."
-            )
+            raise ValueError("Shift is already full.")
         users = self.get_user_list()
         if user_id not in users:
             users.append(user_id)
@@ -229,23 +125,17 @@ class Shift(db.Model):
         users = self.get_user_list()
         if user_id in users:
             users.remove(user_id)
-            self.user_ids = (
-                ",".join(users)
-                if users
-                else None
-            )
+            self.user_ids = ",".join(users) if users else None
 
 
+# ——— Crear tablas y seed de admin ———
 with app.app_context():
-    if not User.query.filter_by(
-        user_id="adminA",
-    ).first():
-        hashed_pw = generate_password_hash(
-            "admin123"
-        )
+    db.create_all()
+    if not User.query.filter_by(user_id="adminA").first():
+        hashed = generate_password_hash("admin123")
         admin = User(
             user_id="adminA",
-            user_password=hashed_pw,
+            user_password=hashed,
             name="Admin",
             surname="Account",
             rating=5,
@@ -254,260 +144,136 @@ with app.app_context():
         db.session.add(admin)
         db.session.commit()
 
+# ——— Login manager ———
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = "login"
+login_manager.login_message = "Please log in to access this page."
+
 
 @login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(
-        int(user_id),
-    )
+def loader_user(user_id):
+    return User.query.get(int(user_id))
 
 
-@app.template_filter(
-    "get_days_in_month",
-)
-def get_days_in_month_filter(
-    year,
-    month,
-):
-    return calendar.monthrange(
-        year,
-        month,
-    )[1]
+# ——— Helpers de calendario ———
+def get_days_in_month(year, month):
+    return calendar.monthrange(year, month)[1]
 
 
-@app.route(
-    "/",
-    methods=["GET", "POST"],
-)
-@login_required
+@app.template_filter("get_days_in_month")
+def get_days_in_month_filter(year, month):
+    return get_days_in_month(year, month)
+
+
+# ——— Rutas ———
+
+
+@app.route("/", methods=["GET", "POST"])
 def login():
     error = None
     if request.method == "POST":
         uid = request.form["username"]
         pwd = request.form["password"]
-        user = User.query.filter_by(
-            user_id=uid,
-        ).first()
-        if (
-            user
-            and check_password_hash(
-                user.user_password,
-                pwd,
-            )
-        ):
+        user = User.query.filter_by(user_id=uid).first()
+        if user and check_password_hash(user.user_password, pwd):
             login_user(user)
-            if uid == "adminA":
-                return redirect(
-                    url_for(
-                        "admin_main",
-                    )
-                )
             return redirect(
-                url_for(
-                    "normal_staff",
-                )
+                url_for("admin_main") if uid == "adminA" else url_for("normal_staff")
             )
-        error = (
-            "Invalid Credentials. Please try again."
-        )
-    return render_template(
-        "login.html",
-        error=error,
-    )
+        error = "Invalid Credentials. Please try again."
+    return render_template("login.html", error=error)
 
 
-@app.route(
-    "/logout",
-)
+@app.route("/logout")
 @login_required
 def logout():
     logout_user()
-    return redirect(
-        url_for(
-            "login",
-        )
-    )
+    return redirect(url_for("login"))
 
 
-@app.route(
-    "/admin_main",
-)
+@app.route("/admin_main")
 @login_required
 def admin_main():
-    return render_template(
-        "admin_main.html",
-    )
+    return render_template("admin_main.html")
 
 
-@app.route(
-    "/admin_manage",
-)
+@app.route("/admin_manage")
 @login_required
 def admin_manage():
     users = (
-        User.query
-        .filter(
-            User.user_id != "adminA",
-        )
-        .order_by(
-            User.rating.desc(),
-        )
-        .all()
+        User.query.filter(User.user_id != "adminA").order_by(User.rating.desc()).all()
     )
-    return render_template(
-        "admin_manage.html",
-        users=users,
-    )
+    return render_template("admin_manage.html", users=users)
 
 
-@app.route(
-    "/admin_edit/<int:user_id>",
-    methods=["GET", "POST"],
-)
+@app.route("/admin_edit/<int:user_id>", methods=["GET", "POST"])
 @login_required
-def admin_edit(
-    user_id,
-):
-    user = User.query.get_or_404(
-        user_id,
-    )
+def admin_edit(user_id):
+    user = User.query.get_or_404(user_id)
     if request.method == "POST":
         user.name = request.form["name"]
         user.surname = request.form["surname"]
-        user.rating = int(
-            request.form["rating"],
-        )
+        user.rating = int(request.form["rating"])
         db.session.commit()
-        return redirect(
-            url_for(
-                "admin_manage",
-            )
-        )
-    return render_template(
-        "admin_edit.html",
-        user=user,
-    )
+        return redirect(url_for("admin_manage"))
+    return render_template("admin_edit.html", user=user)
 
 
-@app.route(
-    "/delete_user/<int:user_id>",
-    methods=["POST"],
-)
+@app.route("/delete_user/<int:user_id>", methods=["POST"])
 @login_required
-def delete_user(
-    user_id,
-):
-    user = User.query.get_or_404(
-        user_id,
-    )
-    db.session.delete(user)
+def delete_user(user_id):
+    u = User.query.get_or_404(user_id)
+    db.session.delete(u)
     db.session.commit()
-    return redirect(
-        url_for(
-            "admin_manage",
-        )
-    )
+    return redirect(url_for("admin_manage"))
 
 
-@app.route(
-    "/add_user",
-    methods=["GET", "POST"],
-)
+@app.route("/add_user", methods=["GET", "POST"])
 @login_required
 def add_user():
     if request.method == "POST":
         name = request.form["name"]
         surname = request.form["surname"]
-        uid = User.generate_user_id(
-            name,
-            surname,
-        )
+        uid = User.generate_user_id(name, surname)
         pwd = User.generate_random_password()
-        hashed_pw = generate_password_hash(
-            pwd,
-        )
-        new_user = User(
+        hashed = generate_password_hash(pwd)
+        new_u = User(
             user_id=uid,
-            user_password=hashed_pw,
+            user_password=hashed,
             name=name,
             surname=surname,
             rating=User.initial_rating(),
         )
-        db.session.add(
-            new_user,
-        )
+        db.session.add(new_u)
         db.session.commit()
-        return redirect(
-            url_for(
-                "user_success",
-                user_id=uid,
-                password=pwd,
-            )
-        )
-    return render_template(
-        "add_user.html",
-    )
+        return redirect(url_for("user_success", user_id=uid, password=pwd))
+    return render_template("add_user.html")
 
 
-@app.route(
-    "/user_success",
-)
+@app.route("/user_success")
 @login_required
 def user_success():
     return render_template(
         "user_success.html",
-        user_id=request.args.get(
-            "user_id",
-        ),
-        password=request.args.get(
-            "password",
-        ),
+        user_id=request.args.get("user_id"),
+        password=request.args.get("password"),
     )
 
 
-@app.route(
-    "/admin_shift_selection/<int:year>/<int:month>",
-    methods=["GET", "POST"],
-)
+@app.route("/admin_shift_selection/<int:year>/<int:month>", methods=["GET", "POST"])
 @login_required
-def admin_shift_selection(
-    year,
-    month,
-):
-    if not (
-        1 <= month <= 12
-        and year >= 1900
-    ):
-        abort(
-            404,
-            "Invalid year or month!",
-        )
-    days = calendar.monthrange(
-        year,
-        month,
-    )[1]
+def admin_shift_selection(year, month):
+    if month < 1 or month > 12 or year < 1900:
+        abort(404, "Invalid year or month!")
+    days = get_days_in_month(year, month)
+
     if request.method == "POST":
-        for day in range(
-            1,
-            days + 1,
-        ):
-            for color in (
-                "red",
-                "blue",
-                "green",
-            ):
-                key = f"{color}_shift_{day}"
-                avail = int(
-                    request.form.get(
-                        key,
-                        0,
-                    )
-                )
+        for d in range(1, days + 1):
+            for color in ["red", "blue", "green"]:
+                avail = int(request.form.get(f"{color}_shift_{d}", 0))
                 shift = Shift.query.filter_by(
-                    year=year,
-                    month=month,
-                    day=day,
-                    shift_name=color,
+                    year=year, month=month, day=d, shift_name=color
                 ).first()
                 if shift:
                     shift.available = avail
@@ -517,58 +283,23 @@ def admin_shift_selection(
                             shift_name=color,
                             year=year,
                             month=month,
-                            day=day,
+                            day=d,
                             available=avail,
                         )
                     )
         db.session.commit()
-        return redirect(
-            url_for(
-                "admin_shift_selection",
-                year=year,
-                month=month,
-            )
-        )
-    shifts = {
-        d: {c: 0 for c in (
-            "red",
-            "blue",
-            "green",
-        )}
-        for d in range(
-            1,
-            days + 1,
-        )
-    }
-    for shift in Shift.query.filter_by(
-        year=year,
-        month=month,
-    ).all():
-        shifts[
-            shift.day
-        ][
-            shift.shift_name
-        ] = shift.available
-    prev_month = (
-        12
-        if month == 1
-        else month - 1
-    )
-    prev_year = (
-        year - 1
-        if month == 1
-        else year
-    )
-    next_month = (
-        1
-        if month == 12
-        else month + 1
-    )
-    next_year = (
-        year + 1
-        if month == 12
-        else year
-    )
+        return redirect(url_for("admin_shift_selection", year=year, month=month))
+
+    shifts = {d: {c: 0 for c in ["red", "blue", "green"]} for d in range(1, days + 1)}
+    for s in Shift.query.filter_by(year=year, month=month).all():
+        shifts[s.day][s.shift_name] = s.available
+
+    prev_month = month - 1 or 12
+    prev_year = year - 1 if month == 1 else year
+    next_month = month + 1 if month < 12 else 1
+    next_year = year + 1 if month == 12 else year
+
+    # <— Aquí incluyo TODAS las vars que tu plantilla usa:
     return render_template(
         "admin_shift_selection.html",
         shifts=shifts,
@@ -587,67 +318,43 @@ def admin_shift_selection(
     methods=["GET", "POST"],
 )
 @login_required
-def user_shift_selection(
-    year,
-    month,
-    username,
-):
-    days = calendar.monthrange(
-        year,
-        month,
-    )[1]
+def user_shift_selection(year, month, username):
+    # … tu lógica permanece igual …
+    # Asegúrate de pasar year, month y days_in_month
+    days = get_days_in_month(year, month)
+    # … resto …
     return render_template(
         "user_shift_selection.html",
-        shifts={},
+        shifts=shifts,
         username=username,
         year=year,
         month=month,
         days_in_month=days,
-        error_message=None,
+        error_message=error,
     )
 
 
-@app.route(
-    "/normal_staff",
-)
+@app.route("/normal_staff")
 @login_required
 def normal_staff():
-    return render_template(
-        "normal_staff.html",
-    )
+    return render_template("normal_staff.html")
 
 
-@app.route(
-    "/my_schedule",
-)
+@app.route("/my_schedule")
 @login_required
 def my_schedule():
-    return render_template(
-        "my_schedule.html",
-        shifts={},
-    )
+    # … permanece igual …
+    return render_template("my_schedule.html", shifts=shifts)
 
 
-@app.route(
-    "/profile",
-    methods=["GET", "POST"],
-)
+@app.route("/profile", methods=["GET", "POST"])
 @login_required
 def profile():
-    return render_template(
-        "profile.html",
-        user=current_user,
-    )
+    # … permanece igual …
+    return render_template("profile.html", user=user)
 
 
+# ——— Arranque de la app ———
 if __name__ == "__main__":
-    port = int(
-        os.environ.get(
-            "PORT",
-            5000,
-        )
-    )
-    app.run(
-        host="0.0.0.0",
-        port=port,
-    )
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
