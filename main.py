@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+# pylint: disable=missing-module-docstring,missing-class-docstring,missing-function-docstring,import-error,redefined-outer-name
 import calendar
 import os
 import random
