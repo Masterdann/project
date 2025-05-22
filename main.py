@@ -1,5 +1,11 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=missing-module-docstring,missing-class-docstring,missing-function-docstring,import-error,redefined-outer-name
+# Pylint overrides, split across lines to avoid an overly long comment:
+# pylint: disable=missing-module-docstring
+# pylint: disable=missing-class-docstring
+# pylint: disable=missing-function-docstring
+# pylint: disable=import-error
+# pylint: disable=redefined-outer-name
+
 import calendar
 import os
 import random
